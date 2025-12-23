@@ -1,0 +1,15 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.3.10/schema.json",
+  "extends": ["ultracite/core", "ultracite/next"],
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "linter": {
+    "enabled": true
+  },
+  "formatter": {
+    "enabled": true
+  }
+}
