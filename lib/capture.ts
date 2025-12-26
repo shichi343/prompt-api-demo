@@ -1,6 +1,3 @@
-const MAX_WIDTH = 720;
-const JPEG_QUALITY = 0.6;
-
 export async function startCapture(
   streamRef: React.MutableRefObject<MediaStream | null>
 ) {
@@ -58,31 +55,26 @@ export async function captureFrame(
   streamRef: React.MutableRefObject<MediaStream | null>
 ): Promise<Blob> {
   const video = await getVideo(streamRef);
-  const width = video.videoWidth || 1;
-  const height = video.videoHeight || 1;
+  const width = video.videoWidth;
+  const height = video.videoHeight;
 
   const canvas = document.createElement("canvas");
-  const scale = Math.min(1, MAX_WIDTH / width);
-  canvas.width = Math.floor(width * scale);
-  canvas.height = Math.floor(height * scale);
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     throw new Error("Canvasが利用できません");
   }
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(video, 0, 0, width, height);
 
   const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (b) => {
-        if (b) {
-          resolve(b);
-        } else {
-          reject(new Error("画像のBlob化に失敗しました"));
-        }
-      },
-      "image/jpeg",
-      JPEG_QUALITY
-    );
+    canvas.toBlob((b) => {
+      if (b) {
+        resolve(b);
+      } else {
+        reject(new Error("画像のBlob化に失敗しました"));
+      }
+    }, "image/png");
   });
 
   return blob;

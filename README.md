@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Work Tracker — 画面共有 × Prompt API
 
-## Getting Started
+画面共有の映像を一定間隔でキャプチャし、ブラウザの Prompt API（`LanguageModel`）で作業サマリを自動生成してタイムライン化します。蓄積したサマリから作業レポート（Markdown）も生成できます。
 
-First, run the development server:
+## 特徴
+
+- 画面共有（`getDisplayMedia`）+ 定期キャプチャ
+- Prompt API（`LanguageModel`）で画像→サマリ、サマリ→レポート生成
+- 履歴はブラウザの `localStorage` に保存（サーバー不要 / APIキー不要）
+- GitHub Pages 向けの静的エクスポート（`output: "export"`）
+
+## 動作要件
+
+- Node.js 20+（開発/ビルド用）
+- `LanguageModel` が利用できるブラウザ（Prompt API 対応環境）
+  - DevTools で `typeof LanguageModel` が `"undefined"` の場合、サマリ/レポート生成は失敗します
+- 画面共有を許可できること（HTTPS または `localhost`）
+
+## セットアップ
+
+```bash
+npm ci
+```
+
+## 開発
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`http://localhost:3000` を開きます。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 使い方
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. 「録画を開始」を押して共有対象（画面/ウィンドウ/タブ）を選択
+2. 「キャプチャ間隔」でサマリ生成の頻度を調整
+3. 必要に応じて「レポート自動生成」を設定（または「レポート生成」を手動実行）
+4. 生成されたレポートは展開して Markdown をコピー可能
 
-## Learn More
+## データ保存
 
-To learn more about Next.js, take a look at the following resources:
+- 生成したサマリ/レポートは `localStorage` に保存されます（「データをクリア」で削除）
+- キャプチャ画像は永続保存しません（生成処理に利用した Blob を保持しません）
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## ビルド（静的エクスポート）
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run build
+```
 
-## Deploy on Vercel
+`out/` が生成されます。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### GitHub Pages（`basePath`）
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Pages が `https://username.github.io/<repo>/` で公開される場合は、ビルド時に `NEXT_PUBLIC_BASE_PATH=<repo>` を指定します。
+
+例:
+
+```bash
+NEXT_PUBLIC_BASE_PATH=prompt-api-live-share-demo npm run build
+```
+
+プレビューする場合は、`out/` を静的サーバーで配信して `<repo>/` パスを開きます。
+
+## デプロイ
+
+GitHub Pages へのデプロイは `.github/workflows/deploy.yml` を使用します（ワークフロー内で `NEXT_PUBLIC_BASE_PATH=prompt-api-live-share-demo` を設定済み）。
+
+## ライセンス
+
+`LICENSE` を参照してください。

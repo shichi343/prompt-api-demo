@@ -7,7 +7,12 @@ import StatusHeader from "@/components/status-header";
 import Timeline from "@/components/timeline";
 import { useCaptureLoop } from "@/hooks/use-capture-loop";
 import { startCapture, stopCapture } from "@/lib/capture";
-import { generateReport } from "@/lib/llm";
+import {
+  disposeAllPromptApiSessions,
+  disposeCaptureSummaryPromptSession,
+  generateReport,
+  warmupCaptureSummaryPromptSession,
+} from "@/lib/llm";
 import {
   loadInterval,
   loadReportInterval,
@@ -22,6 +27,7 @@ import type { ReportEntry, SummaryEntry } from "@/types";
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
+  const [isCaptureSummaryReady, setIsCaptureSummaryReady] = useState(false);
   const [intervalSec, setIntervalSec] = useState<number>(30);
   const [reportIntervalMin, setReportIntervalMin] = useState<number>(30);
   const [summaries, setSummaries] = useState<SummaryEntry[]>([]);
@@ -33,11 +39,46 @@ export default function Home() {
   const streamRef = useRef<MediaStream | null>(null);
   const reportTimerRef = useRef<NodeJS.Timeout | null>(null);
   const summariesRef = useRef<SummaryEntry[]>([]);
+  const shareTrackCleanupRef = useRef<(() => void) | null>(null);
 
   // 最新 summaries を参照用に保持（依存関係に使わない）
   useEffect(() => {
     summariesRef.current = summaries;
   }, [summaries]);
+
+  useEffect(() => {
+    if (!isSharing) {
+      setIsCaptureSummaryReady(false);
+      return;
+    }
+    let canceled = false;
+    warmupCaptureSummaryPromptSession()
+      .then(() => {
+        if (!canceled) {
+          setIsCaptureSummaryReady(true);
+        }
+      })
+      .catch((e) => {
+        console.error("Failed to warm up Prompt API session", e);
+        if (!canceled) {
+          setIsCaptureSummaryReady(false);
+          toast.error("Prompt APIの準備に失敗しました");
+        }
+      });
+    return () => {
+      canceled = true;
+      setIsCaptureSummaryReady(false);
+      disposeCaptureSummaryPromptSession();
+    };
+  }, [isSharing]);
+
+  const isCaptureEnabled = isSharing && isCaptureSummaryReady;
+
+  useEffect(() => {
+    return () => {
+      disposeAllPromptApiSessions();
+    };
+  }, []);
 
   // 初期ロード
   useEffect(() => {
@@ -73,7 +114,7 @@ export default function Home() {
 
   // 次のキャプチャ時刻を計算
   useEffect(() => {
-    if (!isSharing) {
+    if (!isCaptureEnabled) {
       setNextCaptureAt(null);
       return;
     }
@@ -81,7 +122,7 @@ export default function Home() {
     updateNext();
     const interval = setInterval(updateNext, intervalSec * 1000);
     return () => clearInterval(interval);
-  }, [isSharing, intervalSec]);
+  }, [isCaptureEnabled, intervalSec]);
 
   // レポート定期生成
   useEffect(() => {
@@ -202,7 +243,26 @@ export default function Home() {
       return;
     }
     try {
+      shareTrackCleanupRef.current?.();
+      shareTrackCleanupRef.current = null;
+
       await startCapture(streamRef);
+
+      const track = streamRef.current?.getVideoTracks()?.[0];
+      if (track) {
+        const onEnded = () => {
+          shareTrackCleanupRef.current?.();
+          shareTrackCleanupRef.current = null;
+          stopCapture(streamRef);
+          setIsSharing(false);
+          toast.error("画面共有が停止されました");
+        };
+        track.addEventListener("ended", onEnded);
+        shareTrackCleanupRef.current = () => {
+          track.removeEventListener("ended", onEnded);
+        };
+      }
+
       setIsSharing(true);
       toast.success("画面共有を開始しました");
     } catch (e) {
@@ -216,18 +276,24 @@ export default function Home() {
         console.error(e);
         toast.error("画面共有に失敗しました", { description: String(e) });
       }
+      shareTrackCleanupRef.current?.();
+      shareTrackCleanupRef.current = null;
       stopCapture(streamRef);
       setIsSharing(false);
     }
   }, [isSharing]);
 
   const handleStopCapture = useCallback(() => {
+    shareTrackCleanupRef.current?.();
+    shareTrackCleanupRef.current = null;
     stopCapture(streamRef);
     setIsSharing(false);
     toast("画面共有を停止しました");
   }, []);
 
   const handleAutoStopCapture = useCallback(() => {
+    shareTrackCleanupRef.current?.();
+    shareTrackCleanupRef.current = null;
     setIsSharing(false);
   }, []);
 
@@ -318,7 +384,7 @@ export default function Home() {
 
   // キャプチャループ
   useCaptureLoop({
-    enabled: isSharing,
+    enabled: isCaptureEnabled,
     intervalSec,
     streamRef,
     setSummaries,

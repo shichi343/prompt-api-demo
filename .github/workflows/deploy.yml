@@ -18,7 +18,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      NEXT_PUBLIC_BASE_PATH: prompt-api-demo
+      NEXT_PUBLIC_BASE_PATH: prompt-api-live-share-demo
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,4 +55,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
