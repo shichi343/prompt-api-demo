@@ -20,7 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Work Tracker — 画面共有 × Prompt API",
   description:
-    "画面共有映像からAIが作業サマリを自動生成し、日次レポートを作成するツール",
+    "画面共有からブラウザ内蔵AIが作業サマリを自動生成",
 };
 
 export default function RootLayout({
